@@ -94,3 +94,5 @@ $$;
 
 REVOKE ALL ON FUNCTION public.rpc_cancel_deposit(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.rpc_cancel_deposit(UUID, TEXT) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

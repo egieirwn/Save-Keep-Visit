@@ -130,8 +130,8 @@ input, select, textarea {
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
+  gap: 0.625rem;
+  margin-bottom: 1.75rem;
 }
 
 .logo-badge {
@@ -148,21 +148,27 @@ input, select, textarea {
 }
 
 .sidebar-brand-logo {
-  width: 78px;
+  width: 68px;
   height: auto;
   flex: 0 0 auto;
 }
 
+.logo-text {
+  min-width: 0;
+}
+
 .logo-text h2 {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--color-text-main);
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .logo-text span {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .sidebar-nav {

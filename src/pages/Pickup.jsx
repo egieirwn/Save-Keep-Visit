@@ -363,11 +363,12 @@ export default function Pickup() {
                     <span style={{ color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>×{item.quantity}</span>
                     <span style={{ color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>· Kondisi: {item.initial_condition}</span>
                   </div>
-                  {item.storage_locations && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600 }}>
-                      <MapPin size={12} /> {item.storage_locations.code}
-                    </span>
-                  )}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600 }}>
+                    <MapPin size={12} />
+                    {item.storage_locations
+                      ? `${item.storage_locations.code} — ${item.storage_locations.name}`
+                      : 'Lokasi tidak tercatat'}
+                  </span>
                 </div>
               ))}
             </div>

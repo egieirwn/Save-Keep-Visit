@@ -114,7 +114,11 @@ export default function ActiveDeposits() {
         : 'Simulasi pembatalan berhasil.');
     } catch (err) {
       console.error('Error cancelling deposit:', err);
-      toast.error(`Gagal membatalkan penitipan: ${err.message}`);
+      const missingRpc = err?.code === 'PGRST202' ||
+        err?.message?.includes('rpc_cancel_deposit');
+      toast.error(missingRpc
+        ? 'Fitur pembatalan belum aktif di database. Jalankan supabase/migration_cancel_deposit.sql di Supabase SQL Editor, lalu coba lagi.'
+        : `Gagal membatalkan penitipan: ${err.message}`);
     } finally {
       setCancelling(false);
     }

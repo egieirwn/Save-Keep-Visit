@@ -31,6 +31,7 @@ const StatusBadge = ({ status }) => {
 export default function DepositHistory() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
@@ -39,6 +40,7 @@ export default function DepositHistory() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     if (!isConfigured) {
       const demoTransactions = [
         {
@@ -49,7 +51,10 @@ export default function DepositHistory() {
           visitors: { full_name: 'Ahmad Rizki', institution: 'SMK Negeri 1', visit_type: 'Kunjungan Pendidikan' },
           received: { full_name: 'Petugas A' },
           released: { full_name: 'Petugas B' },
-          deposit_items: [{ name: 'Tas Ransel', quantity: 1 }, { name: 'Korek Api', quantity: 1 }]
+          deposit_items: [
+            { name: 'Tas Ransel', quantity: 1, storage_locations: { code: 'RAK-A01', name: 'Rak A01' } },
+            { name: 'Korek Api', quantity: 1, storage_locations: { code: 'RAK-A01', name: 'Rak A01' } }
+          ]
         }
       ];
       setTransactions(filterStatus
@@ -63,13 +68,12 @@ export default function DepositHistory() {
       let query = supabase
         .from('deposit_transactions')
         .select(`
-          id, transaction_code, status, checkin_at, checkout_at, cancelled_at, cancellation_reason, pickup_method,
+          id, transaction_code, status, checkin_at, checkout_at, pickup_method,
           representative_name,
           visitors(full_name, institution, visit_type),
           received:profiles!received_by(full_name),
           released:profiles!released_by(full_name),
-          cancelled:profiles!cancelled_by(full_name),
-          deposit_items(id, name, quantity, photo_url)
+          deposit_items(id, name, quantity, photo_url, storage_locations(code, name))
         `)
         .in('status', ['completed', 'cancelled'])
         .order('checkin_at', { ascending: false })
@@ -85,9 +89,42 @@ export default function DepositHistory() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setTransactions(data || []);
+
+      const historyRows = data || [];
+      const cancelledIds = historyRows
+        .filter(tx => tx.status === 'cancelled')
+        .map(tx => tx.id);
+
+      if (cancelledIds.length > 0) {
+        const { data: cancellationData, error: cancellationError } = await supabase
+          .from('deposit_transactions')
+          .select(`
+            id, cancelled_at, cancellation_reason,
+            cancelled:profiles!cancelled_by(full_name)
+          `)
+          .in('id', cancelledIds);
+
+        if (cancellationError) {
+          console.error('Error fetching cancellation details:', cancellationError);
+          setLoadError(
+            `Riwayat berhasil dimuat, tetapi detail pembatalan tidak tersedia. Pastikan migrasi supabase/migration_cancel_deposit.sql sudah dijalankan. (${cancellationError.message})`
+          );
+          setTransactions(historyRows);
+        } else {
+          const cancellationById = new Map(
+            (cancellationData || []).map(tx => [tx.id, tx])
+          );
+          setTransactions(historyRows.map(tx => ({
+            ...tx,
+            ...(cancellationById.get(tx.id) || {})
+          })));
+        }
+      } else {
+        setTransactions(historyRows);
+      }
     } catch (err) {
       console.error(err);
+      setLoadError(`Gagal memuat riwayat transaksi: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -115,6 +152,12 @@ export default function DepositHistory() {
           <RefreshCw size={16} className={loading ? 'spin' : ''} /> Perbarui
         </button>
       </div>
+
+      {loadError && (
+        <div className="alert alert-danger" role="alert" style={{ marginBottom: '1rem' }}>
+          {loadError}
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="filter-bar">
@@ -187,7 +230,16 @@ export default function DepositHistory() {
                     <td style={{ fontWeight: 600 }}>{tx.visitors?.full_name || '—'}</td>
                     <td style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{tx.visitors?.institution || '—'}</td>
                     <td style={{ fontSize: '0.8125rem' }}>
-                      {tx.deposit_items?.slice(0, 2).map(i => i.name).join(', ')}
+                      {tx.deposit_items?.slice(0, 2).map(item => (
+                        <div key={item.id || item.name} style={{ marginBottom: '0.25rem' }}>
+                          <div>{item.name} ×{item.quantity}</div>
+                          <small style={{ color: 'var(--color-text-muted)' }}>
+                            {item.storage_locations
+                              ? `Lokasi: ${item.storage_locations.code} — ${item.storage_locations.name}`
+                              : 'Lokasi tidak tercatat'}
+                          </small>
+                        </div>
+                      ))}
                       {tx.deposit_items?.length > 2 && ` +${tx.deposit_items.length - 2}`}
                     </td>
                     <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{formatDT(tx.checkin_at)}</td>
@@ -297,7 +349,14 @@ export default function DepositHistory() {
                         loading="lazy"
                       />
                     )}
-                    <span>{item.name} ×{item.quantity}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div>{item.name} ×{item.quantity}</div>
+                      <small style={{ color: 'var(--color-text-muted)' }}>
+                        {item.storage_locations
+                          ? `Lokasi saat penitipan: ${item.storage_locations.code} — ${item.storage_locations.name}`
+                          : 'Lokasi tidak tercatat'}
+                      </small>
+                    </div>
                   </div>
                 ))}
               </div>
